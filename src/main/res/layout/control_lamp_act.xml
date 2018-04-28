@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?><!--自定义控制灯页面-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ctrl_seekbar"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <include
+        android:id="@+id/control_top"
+        layout="@layout/top"
+        android:layout_width="match_parent"
+        android:layout_height="60dp" />
+
+    <com.example.obdongle.widget.ColorLampSettingPanel
+        android:id="@+id/custom_ctrl_panel"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_centerHorizontal="true"
+        android:layout_centerInParent="true"
+        android:layout_marginTop="10dp" />
+
+    <ImageView
+        android:id="@+id/control_image"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true" />
+
+    <RelativeLayout
+        android:id="@+id/seek_rl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="35dp">
+
+        <TextView
+            android:id="@+id/percent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/custom_ctrl_seekbar"
+            android:layout_marginLeft="60dp"
+            android:gravity="center"
+            android:paddingTop="10dip"
+            android:text="0%"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/light_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentLeft="true"
+            android:layout_marginBottom="35dp"
+            android:layout_marginLeft="20dp"
+            android:paddingBottom="5dp"
+            android:text="亮度" />
+
+        <ImageView
+            android:id="@+id/custom_light"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            android:layout_marginBottom="35dp"
+            android:layout_marginRight="10dp"
+            android:src="@drawable/light" />
+
+        <SeekBar
+            android:id="@+id/custom_ctrl_seekbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="30dp"
+            android:layout_marginRight="25dp"
+            android:layout_toRightOf="@+id/light_tv"
+            android:progressDrawable="@drawable/ctrl_light_pro"
+            android:thumb="@drawable/lamp_light_thumb"
+            android:thumbOffset="10dp" />
+    </RelativeLayout>
+
+</RelativeLayout>
