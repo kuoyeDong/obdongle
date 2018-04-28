@@ -32,8 +32,10 @@ public class ControlLampAct extends BaseAct implements Respond {
         topLeftImg = (ImageView) findViewById(R.id.control_top).findViewById(R.id.left_img);
 
 
-
         
+
+
+
     }
 
     @Override
