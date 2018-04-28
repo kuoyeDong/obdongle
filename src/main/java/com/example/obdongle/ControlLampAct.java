@@ -31,11 +31,6 @@ public class ControlLampAct extends BaseAct implements Respond {
         setContentView(R.layout.control_lamp_act);
         topLeftImg = (ImageView) findViewById(R.id.control_top).findViewById(R.id.left_img);
 
-
-        
-
-
-
     }
 
     @Override
