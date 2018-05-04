@@ -36,10 +36,13 @@ import com.example.obdongle.fragment.ScanFragment;
 import com.example.obdongle.net.BluetoothLeService;
 import com.example.obdongle.net.SampleGattAttributes;
 import com.example.obdongle.net.SpliceTrans;
+import com.example.obdongle.util.ShareSerializableUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import static com.example.obdongle.net.BluetoothLeService.EXTRA_DATA;
 
 @SuppressWarnings("deprecation")
 public class MainActivity extends BaseAct {
@@ -57,6 +60,9 @@ public class MainActivity extends BaseAct {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        /*反序列化获取数据*/
+        new ShareSerializableUtil(this);
+        ShareSerializableUtil.getInstance().instatnceData(DataPool.getInstance());
         viewPager = (ViewPager) findViewById(R.id.vp);
         btLeft = (LinearLayout) findViewById(R.id.bt_left);
         btRight = (LinearLayout) findViewById(R.id.bt_right);
@@ -67,13 +73,15 @@ public class MainActivity extends BaseAct {
         btLeft.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                changeShowView(true);
+                viewPager.setCurrentItem(0);
+                changeTabShowView(true);
             }
         });
         btRight.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                changeShowView(false);
+                viewPager.setCurrentItem(1);
+                changeTabShowView(false);
             }
         });
         fragments.add(DeviceFragment.instance());
@@ -90,6 +98,22 @@ public class MainActivity extends BaseAct {
             }
         };
         viewPager.setAdapter(fpa);
+        viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+                changeTabShowView(position == 0);
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+
+            }
+        });
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = bluetoothManager.getAdapter();
@@ -103,12 +127,11 @@ public class MainActivity extends BaseAct {
     }
 
     /**
-     * 改变显示
+     * 改变tab显示
      *
      * @param isDevice 显示设备页面为true，扫描页面false
      */
-    private void changeShowView(boolean isDevice) {
-        viewPager.setCurrentItem(isDevice ? 0 : 1);
+    private void changeTabShowView(boolean isDevice) {
         btLeftImg.setImageDrawable(getResources().getDrawable(isDevice ? R.drawable.device_press : R.drawable.device_noraml));
         btLeftTv.setTextColor(getResources().getColor(isDevice ? R.color.blue : R.color.gray));
         btRightImg.setImageDrawable(getResources().getDrawable(isDevice ? R.drawable.scan_normal : R.drawable.scan_press));
@@ -259,11 +282,14 @@ public class MainActivity extends BaseAct {
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 onDiscoverServices(mBluetoothLeService.getSupportedGattServices());
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                spliceTrans.onRecieve();
+                byte[] bytes = intent.getByteArrayExtra(EXTRA_DATA);
+                spliceTrans.onRecieve(bytes);
             }
         }
     };
-    private BluetoothGattCharacteristic characteristic;
+    private BluetoothGattCharacteristic characteristic0;
+    private BluetoothGattCharacteristic characteristic1;
+    private BluetoothGattCharacteristic characteristic2;
     private SpliceTrans spliceTrans;
 
     /**
@@ -309,10 +335,25 @@ public class MainActivity extends BaseAct {
             mGattCharacteristics.add(charas);
             gattCharacteristicData.add(gattCharacteristicGroupData);
         }
-        characteristic = mGattCharacteristics.get(mGattCharacteristics.size() - 1).get(0);
-        spliceTrans = new SpliceTrans(characteristic, mBluetoothLeService, DataPool.getInstance().getHandler());
-        mBluetoothLeService.setCharacteristicNotification(
-                characteristic, true);
+        characteristic0 = mGattCharacteristics.get(mGattCharacteristics.size() - 1).get(0);
+        characteristic1 = mGattCharacteristics.get(mGattCharacteristics.size() - 1).get(1);
+        characteristic2 = mGattCharacteristics.get(mGattCharacteristics.size() - 1).get(2);
+        mBluetoothLeService.setCharacteristicNotification(characteristic0, true);
+        mBluetoothLeService.setCharacteristicNotification(characteristic1, true);
+        mBluetoothLeService.setCharacteristicNotification(characteristic2, true);
+        spliceTrans = new SpliceTrans(characteristic0, characteristic1, characteristic2, mBluetoothLeService, DataPool.getInstance().getHandler());
+        /*第一次则获取obox序列号*/
+        if (ShareSerializableUtil.getInstance().isFirst()) {
+            Fragment fragment = getSupportFragmentManager().getFragments().get(0);
+            if (fragment instanceof DeviceFragment) {
+                DeviceFragment deviceFragment = (DeviceFragment) fragment;
+                deviceFragment.reqSerNum();
+            } else {
+                Fragment fragment1 = getSupportFragmentManager().getFragments().get(1);
+                DeviceFragment deviceFragment = (DeviceFragment) fragment1;
+                deviceFragment.reqSerNum();
+            }
+        }
     }
 
     /**

@@ -15,6 +15,11 @@ import java.util.List;
  */
 
 public class DataPool {
+    /**
+     * 当前操作的节点
+     */
+    private ObNode obNode;
+
     public List<ObNode> getObNodes() {
         return obNodes;
     }
@@ -36,7 +41,7 @@ public class DataPool {
     /**
      * 第一次扫描的obox序列号
      */
-    private byte[] oboxSer ;
+    private byte[] oboxSer =new byte[]{0x66,0x77, (byte) 0x88, (byte) 0x99, (byte) 0xff};
     private List<Respond> responds = new ArrayList<>();
     private static DataPool dataPool;
 
@@ -84,5 +89,13 @@ public class DataPool {
         if (responds.contains(respond)) {
             responds.remove(respond);
         }
+    }
+
+    public void setObNode(ObNode obNode) {
+        this.obNode = obNode;
+    }
+
+    public ObNode getObNode() {
+        return obNode;
     }
 }

@@ -148,12 +148,10 @@ public class ParseUtil {
      *
      * @param msg     msg
      */
-    public static String parseObox(Message msg) {
+    public static byte[] parseObox(Message msg) {
         byte[] bytes = getBytes(msg);
         byte[] serNum = Arrays.copyOfRange(bytes, index[11], index[11] + 5);
         byte[] version = Arrays.copyOfRange(bytes, index[11] + 5, index[11] + 5 + 8);
-        String serNumStr = Transformation.byteArryToHexString(serNum);
-        DataPool.getInstance().setOboxSer(serNum);
-        return serNumStr;
+        return serNum;
     }
 }

@@ -25,7 +25,9 @@ public class SpliceTrans {
 
     private static SpliceTrans spliceTrans;
 
-    private BluetoothGattCharacteristic characteristic;
+    private BluetoothGattCharacteristic characteristic0;
+    private BluetoothGattCharacteristic characteristic1;
+    private BluetoothGattCharacteristic characteristic2;
     private BluetoothLeService mBluetoothLeService;
     private Handler mHandler;
 
@@ -33,8 +35,11 @@ public class SpliceTrans {
         return spliceTrans;
     }
 
-    public SpliceTrans(BluetoothGattCharacteristic characteristic, BluetoothLeService mBluetoothLeService, Handler mHandler) {
-        this.characteristic = characteristic;
+    public SpliceTrans(BluetoothGattCharacteristic characteristic0, BluetoothGattCharacteristic characteristic1,
+                       BluetoothGattCharacteristic characteristic2, BluetoothLeService mBluetoothLeService, Handler mHandler) {
+        this.characteristic0 = characteristic0;
+        this.characteristic1 = characteristic1;
+        this.characteristic2 = characteristic2;
         this.mBluetoothLeService = mBluetoothLeService;
         this.mHandler = mHandler;
         spliceTrans = this;
@@ -57,6 +62,11 @@ public class SpliceTrans {
      * 间隔时间，单位毫秒
      */
     private static final int TIME = 30;
+
+    /**
+     * 超时时间
+     */
+    private static final int TIME_OUT = 5000;
 
     private byte[] payloadFragment = new byte[20];
 
@@ -86,29 +96,42 @@ public class SpliceTrans {
             try {
                 Thread.sleep(TIME);
                 int index = i + 1;
-                payloadFragment[0] = (byte) index;
+                payloadFragment[0] = (byte) ((byte) index| (0x01<<3));
                 System.arraycopy(payload, i * 19 + 4, payloadFragment, 1, 19);
-                send(payloadFragment);
+                switch (i) {
+                    case 0:
+                        characteristic0.setValue(payloadFragment);
+                        send(characteristic0);
+                        break;
+                    case 1:
+                        characteristic1.setValue(payloadFragment);
+                        send(characteristic1);
+                        break;
+                    case 2:
+                        characteristic2.setValue(payloadFragment);
+                        send(characteristic2);
+                        break;
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
+        mHandler.sendEmptyMessageDelayed(OBConstant.ReplyType.NOT_REPLY,TIME_OUT);
         Log.d(TAG, "send:all " + Transformation.byteArryToHexString(payload));
         isBusy = false;
     }
 
-    private void send(byte[] payloadFragment) {
+    private void send(BluetoothGattCharacteristic characteristic) {
         characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
-        characteristic.setValue(payloadFragment);
         mBluetoothLeService.writeCharacteristic(characteristic);
         Log.d(TAG, "send:fragment " + Transformation.byteArryToHexString(payloadFragment));
     }
 
     /**
      * 接收到数据
+     * // FIXME: 2018/5/3 还要加超时判断，完成页面后编写
      */
-    public void onRecieve() {
-        byte[] recieveBytes = characteristic.getValue();
+    public void onRecieve(byte[] recieveBytes) {
         int index = recieveBytes[0] & 0x07;
         System.arraycopy(recieveBytes, 1, plusReciveData, (index - 1) * 19 + 4, 19);
         Log.d(TAG, "onRecieve:fragment " + Transformation.byteArryToHexString(recieveBytes));
@@ -153,6 +176,13 @@ public class SpliceTrans {
             case 0xa013:
                 onGetMsg(reciveData, msg);
                 break;
+            case 0xa004:
+                onEditNodeOrGroup(reciveData, msg);
+                break;
+            /*设置场景*/
+            case 0xa021:
+                onSetScene(reciveData, msg);
+                break;
             /*出错*/
             case 0x200f:
                 onWrong(reciveData, msg);
@@ -163,6 +193,21 @@ public class SpliceTrans {
         mHandler.sendMessage(msg);
     }
 
+    /**
+     * 设置场景回复
+     */
+    private void onSetScene(byte[] reciveData, Message msg) {
+        msg.what = OBConstant.ReplyType.ON_SET_SCENE_SUC;
+    }
+
+    private void onEditNodeOrGroup(byte[] bf, Message msg) {
+ /*byte7是否成功,8-14节点完整地址，接节点状态*/
+        if (bf[7] == OBConstant.ReplyType.SUC) {
+            msg.what = OBConstant.ReplyType.EDIT_NODE_OR_GROUP_SUC;
+        } else if (bf[7] == OBConstant.ReplyType.FAL) {
+            msg.what = OBConstant.ReplyType.EDIT_NODE_OR_GROUP_FAL;
+        }
+    }
 
     /**
      * 扫描节点处理

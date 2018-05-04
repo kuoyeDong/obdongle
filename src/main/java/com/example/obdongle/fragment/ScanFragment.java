@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,7 +19,11 @@ import com.example.obdongle.data.DataPool;
 import com.example.obdongle.net.Respond;
 import com.example.obdongle.net.SpliceTrans;
 import com.example.obdongle.util.MakeSendData;
+import com.example.obdongle.util.MathUtil;
 import com.example.obdongle.util.ParseUtil;
+import com.example.obdongle.util.ShareSerializableUtil;
+
+import java.util.List;
 
 /**
  * 扫描页面
@@ -31,6 +36,7 @@ public class ScanFragment extends BaseFragment implements Respond {
     private byte[] oboxSer;
     private DataPool dataPool;
     private static ScanFragment scanFragment;
+
     public static ScanFragment instance() {
         synchronized (ScanFragment.class) {
             if (scanFragment == null) {
@@ -39,6 +45,7 @@ public class ScanFragment extends BaseFragment implements Respond {
         }
         return scanFragment;
     }
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -80,7 +87,7 @@ public class ScanFragment extends BaseFragment implements Respond {
             showToat("蓝牙未连接");
             return;
         }
-        spliceTrans.setValueAndSend(MakeSendData.rfCmd(3, 30, oboxSer, new byte[32]));
+        spliceTrans.setValueAndSend(MakeSendData.rfCmd(3, 30, oboxSer, makeScanIndexBytes(dataPool.getObNodes())));
         waittip();
     }
 
@@ -98,7 +105,7 @@ public class ScanFragment extends BaseFragment implements Respond {
             showToat("蓝牙未连接");
             return;
         }
-        spliceTrans.setValueAndSend(MakeSendData.rfCmd(2, 30, oboxSer, new byte[32]));
+        spliceTrans.setValueAndSend(MakeSendData.rfCmd(2, 30, oboxSer, makeScanIndexBytes(dataPool.getObNodes())));
         waittip();
 
     }
@@ -109,16 +116,27 @@ public class ScanFragment extends BaseFragment implements Respond {
             @Override
             public void run() {
                 disMissProgressDialog();
+                Fragment fragment = getActivity().getSupportFragmentManager().getFragments().get(0);
+                if (fragment instanceof DeviceFragment) {
+                    DeviceFragment deviceFragment = (DeviceFragment) fragment;
+                    deviceFragment.notifyDeviceChange();
+                }else {
+                    Fragment fragment1 = getActivity().getSupportFragmentManager().getFragments().get(1);
+                    DeviceFragment deviceFragment = (DeviceFragment) fragment1;
+                    deviceFragment.notifyDeviceChange();
+                }
             }
-        }, search_time);
+        }, search_time * 1000);
     }
 
     private Handler handler = new Handler();
+
     @Override
     public void onReceive(Message message) {
         switch (message.what) {
             case OBConstant.ReplyType.ON_GET_NEW_NODE:
                 ObNode obNode = ParseUtil.parseNewNode(message, dataPool.getObNodes());
+                ShareSerializableUtil.getInstance().storageData(dataPool);
                 setDialogMessage("扫描到设备" + obNode.getNodeId());
                 break;
             case OBConstant.ReplyType.FORCE_SEARCH_SUC:
@@ -128,5 +146,24 @@ public class ScanFragment extends BaseFragment implements Respond {
                 showProgressDialog("请稍后", "请戳孔", false);
                 break;
         }
+    }
+
+    /**计算扫描时的index数组，先设置占用的为1再取反
+     * @param obNodes 现有节点集合
+     * @return 目标index数组，bit为0表述位置已经被占用
+     */
+    private byte[] makeScanIndexBytes(List<ObNode> obNodes) {
+        byte[] bytes = new byte[32];
+        for (int i = 0; i < obNodes.size(); i++) {
+            ObNode obNode = obNodes.get(i);
+            int addr = obNode.getAddr() & 0xff;
+            int index = addr / 8;
+            int sup = addr % 8;
+            bytes[index] |= (1 << sup);
+        }
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) ~bytes[i];
+        }
+        return bytes;
     }
 }

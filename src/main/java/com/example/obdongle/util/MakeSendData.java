@@ -63,15 +63,23 @@ public class MakeSendData {
     }
 
     /**
-     * 设置节点的情景
+     * 设置节点的情景,此情景由节点存储
      *
-     * @param actionNode     行为节点
-     * @param conditionNodes 条件节点，最多支持两个
-     * @param index          行为节点的情景下标
+     * @param sceneIndex    行为节点的情景下标
+     * @param actionNode    行为节点
+     * @param conditionNode 条件节点
+     *                      完整地址 7， 编号1 类型1（0x0a为一字节等于），传感器地址1，传感器比较状态2，行为5
      */
-    public static byte[] setNodeScene(ObNode actionNode, List<ObNode> conditionNodes, int index) {
+    public static byte[] setNodeScene(int sceneIndex, ObNode actionNode, ObNode conditionNode,boolean isOpen,byte[] action) {
         byte[] cmd = new byte[64];
-
+        cmd[index[5]] = (byte) 0x80;
+        cmd[index[6]] = (byte) 0x21;
+        System.arraycopy(actionNode.getCplAddr(), 0, cmd, index[8], 7);
+        cmd[index[8] + 7] = (byte) sceneIndex;
+        cmd[index[8] + 7 + 1] = 0x0a;
+        cmd[index[8] + 7 + 1 + 1] = conditionNode.getAddr();
+        cmd[index[8] + 7 + 1 + 1 + 1 + 1] = (byte) (isOpen ? 1 : 0);
+        System.arraycopy(action,0,cmd,cmd[index[8] + 7 + 1 + 1 + 1 + 1+1],action.length);
         return cmd;
     }
 

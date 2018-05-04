@@ -202,6 +202,7 @@ public interface OBConstant {
         int ON_SET_ROUTE_PWD = 45;
         int ON_SET_HEART_SUCCESS = 46;
         int ON_SET_HEART_FAIL = 47;
+        int ON_SET_SCENE_SUC = 48;
     }
 
     /**

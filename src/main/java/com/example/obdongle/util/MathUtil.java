@@ -115,29 +115,6 @@ public class MathUtil {
         return true;
     }
 
-
-
-    /**
-     * 改变某个字节的某个位
-     *
-     * @param src    目标字节
-     * @param dst    要改变的位 0-7
-     * @param isTrue 1为true
-     * @return 目标位置
-     */
-    public static byte changeByteIndexvalue(byte src, int dst, boolean isTrue) {
-        byte goal;
-        if (dst == 0) {
-            goal = (byte) ((MathUtil.byteIndexValid(src, 1, 7) << 1) + (isTrue ? 1 : 0));
-        } else if (dst == 7) {
-            goal = (byte) (MathUtil.byteIndexValid(src, 0, 7) + (isTrue ? 0x80 : 0));
-        } else {
-            goal = (byte) ((MathUtil.byteIndexValid(src, dst + 1, 7 - dst) << (dst + 1))
-                    + (isTrue ? 1 << dst : 0) + MathUtil.byteIndexValid(src, 0, dst));
-        }
-        return goal;
-    }
-
     /**
      * 改变某个字节的某个位
      *

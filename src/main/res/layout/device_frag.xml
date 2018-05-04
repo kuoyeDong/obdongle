@@ -10,11 +10,6 @@
         android:layout_width="match_parent"
         android:layout_height="60dp" />
 
-    <Button
-        android:id="@+id/get_ser_btn"
-        android:layout_width="wrap_content"
-        android:text="获取序列号"
-        android:layout_height="wrap_content" />
     <TextView
         android:id="@+id/ser_tv"
         android:layout_width="wrap_content"

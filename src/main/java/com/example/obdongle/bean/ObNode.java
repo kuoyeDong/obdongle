@@ -5,6 +5,7 @@ import com.example.obdongle.util.MathUtil;
 import com.example.obdongle.util.StringUtil;
 import com.example.obdongle.util.Transformation;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.Map;
  * 所以在此不包含版本信息
  * Created by Adolf_Dong on 2016/5/24.
  */
-public class ObNode {
+public class ObNode implements Serializable{
     /**
      * 所属obox
      */
