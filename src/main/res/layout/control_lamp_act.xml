@@ -18,17 +18,44 @@
         android:layout_centerInParent="true"
         android:layout_marginTop="10dp" />
 
-    <ImageView
-        android:id="@+id/control_image"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/switch_ll"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true" />
+        android:layout_below="@+id/custom_ctrl_panel"
+        android:gravity="center"
+        android:visibility="invisible"
+        android:orientation="horizontal">
+        <!--打开步进开关-->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="打开步进" />
+
+        <Switch
+            android:id="@+id/gradient_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+        <!--步进加减-->
+        <TextView
+            android:id="@+id/plus_cut_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="步进加减" />
+
+        <Switch
+            android:id="@+id/plus_cut_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+    </LinearLayout>
+
 
     <RelativeLayout
         android:id="@+id/seek_rl"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
         android:layout_marginBottom="35dp">
 
         <TextView
@@ -62,6 +89,7 @@
             android:layout_marginBottom="35dp"
             android:layout_marginRight="10dp"
             android:src="@drawable/light" />
+
 
         <SeekBar
             android:id="@+id/custom_ctrl_seekbar"

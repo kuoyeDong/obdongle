@@ -96,7 +96,7 @@ public class SpliceTrans {
             try {
                 Thread.sleep(TIME);
                 int index = i + 1;
-                payloadFragment[0] = (byte) ((byte) index| (0x01<<3));
+                payloadFragment[0] = (byte) ((byte) index | (0x01 << 3));
                 System.arraycopy(payload, i * 19 + 4, payloadFragment, 1, 19);
                 switch (i) {
                     case 0:
@@ -116,8 +116,30 @@ public class SpliceTrans {
                 e.printStackTrace();
             }
         }
-        mHandler.sendEmptyMessageDelayed(OBConstant.ReplyType.NOT_REPLY,TIME_OUT);
+        mHandler.sendEmptyMessageDelayed(OBConstant.ReplyType.NOT_REPLY, TIME_OUT);
         Log.d(TAG, "send:all " + Transformation.byteArryToHexString(payload));
+        isBusy = false;
+    }
+
+
+    /**
+     * 用于控灯指令，设置要发送数据并开始发送，采用原64字节方式，在方法内获取19字节
+     *
+     * @param payload 要发送的原始64字节数据
+     * @param needTimeout    是否需要超时检测，对于蓝牙配置指令 ，不做超时检测
+     */
+    public void setValueAndSendShort(byte[] payload,boolean needTimeout) {
+        if (isBusy || spliceTrans == null) {
+            return;
+        }
+        isBusy = true;
+        payloadFragment[0] = (byte) 0xff;
+        System.arraycopy(payload, 4, payloadFragment, 1, 19);
+        characteristic0.setValue(payloadFragment);
+        send(characteristic0);
+        if (needTimeout) {
+            mHandler.sendEmptyMessageDelayed(OBConstant.ReplyType.NOT_REPLY, TIME_OUT);
+        }
         isBusy = false;
     }
 
@@ -131,13 +153,21 @@ public class SpliceTrans {
      * 接收到数据
      * // FIXME: 2018/5/3 还要加超时判断，完成页面后编写
      */
-    public void onRecieve(byte[] recieveBytes) {
-        int index = recieveBytes[0] & 0x07;
-        System.arraycopy(recieveBytes, 1, plusReciveData, (index - 1) * 19 + 4, 19);
-        Log.d(TAG, "onRecieve:fragment " + Transformation.byteArryToHexString(recieveBytes));
-        if (index == 3) {
+    public  void  onRecieve(byte[] recieveBytes) {
+        /*0xff位控制返回，只有一帧*/
+        if ((recieveBytes[0] & 0xff) == 255) {
+            Arrays.fill(plusReciveData, (byte) 0);
+            System.arraycopy(recieveBytes, 1, plusReciveData, 4, 19);
             Log.d(TAG, "onRecieve: all" + Transformation.byteArryToHexString(plusReciveData));
             handleRecieve(plusReciveData);
+        } else {
+            int index = recieveBytes[0] & 0x07;
+            System.arraycopy(recieveBytes, 1, plusReciveData, (index - 1) * 19 + 4, 19);
+            Log.d(TAG, "onRecieve:fragment " + Transformation.byteArryToHexString(recieveBytes));
+            if (index == 3) {
+                Log.d(TAG, "onRecieve: all" + Transformation.byteArryToHexString(plusReciveData));
+                handleRecieve(plusReciveData);
+            }
         }
     }
 
@@ -148,16 +178,15 @@ public class SpliceTrans {
      */
     private void handleRecieve(byte[] reciveData) {
         mHandler.removeMessages(OBConstant.ReplyType.NOT_REPLY);
-        Message msg = Message.obtain();
+        final Message msg = Message.obtain();
         if (reciveData.length == 5) {
             msg.what = OBConstant.ReplyType.ON_SET_MODE;
             mHandler.sendMessage(msg);
             return;
         }
-        Bundle bundle = new Bundle();
+        final Bundle bundle = new Bundle();
         bundle.putByteArray(OBConstant.StringKey.KEY, reciveData);
         msg.setData(bundle);
-
         int cmd = ((reciveData[4] & 0xff) << 8) + (reciveData[5] & 0xff);
         switch (cmd) {
             /*扫描节点处理*/
@@ -183,6 +212,10 @@ public class SpliceTrans {
             case 0xa021:
                 onSetScene(reciveData, msg);
                 break;
+            /*蓝牙配置*/
+            case 0xa080:
+                onBleConfigFinish(reciveData, msg);
+                break;
             /*出错*/
             case 0x200f:
                 onWrong(reciveData, msg);
@@ -200,6 +233,13 @@ public class SpliceTrans {
         msg.what = OBConstant.ReplyType.ON_SET_SCENE_SUC;
     }
 
+    /**
+     * 设备蓝牙参数配置成功回复
+     */
+    private void onBleConfigFinish(byte[] reciveData, Message msg) {
+        msg.what = OBConstant.ReplyType.ON_BLE_CONFIG_FINISH;
+    }
+
     private void onEditNodeOrGroup(byte[] bf, Message msg) {
  /*byte7是否成功,8-14节点完整地址，接节点状态*/
         if (bf[7] == OBConstant.ReplyType.SUC) {
@@ -211,11 +251,12 @@ public class SpliceTrans {
 
     /**
      * 扫描节点处理
+     * 完整地址如果不为全0则是新节点入网回复
      */
     private void onRfCmd(byte[] bf, Message msg) {
-        byte[] serNm = Arrays.copyOfRange(bf, index[27], index[27 + 5]);
+        byte[] cpladdr = Arrays.copyOfRange(bf, index[16], index[16 + 7]);
         boolean isSuc = bf[index[8]] == OBConstant.ReplyType.SUC;
-        if (!MathUtil.byteArrayIsZero(serNm)) {
+        if (!MathUtil.byteArrayIsZero(cpladdr)) {
             msg.what = isSuc ? OBConstant.ReplyType.ON_GET_NEW_NODE : OBConstant.ReplyType.SEARCH_NODE_FAL;
         } else {
             byte setType = bf[index[9]];

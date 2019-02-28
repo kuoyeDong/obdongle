@@ -1,10 +1,5 @@
 package com.example.obdongle.util;
 
-import android.content.Context;
-import android.graphics.drawable.Drawable;
-import android.widget.ImageView;
-import android.widget.TextView;
-
 import com.example.obdongle.R;
 import com.example.obdongle.bean.ObNode;
 import com.example.obdongle.constant.OBConstant;
@@ -27,6 +22,9 @@ public class GetIconFromType {
      * 获取本地节点的icon
      */
     public int getDrawResIdForType(ObNode node) {
+        if (node == null) {
+            return R.drawable.unkown_room;
+        }
         int type = node.getParentType();
         int childType = node.getType();
         return getSingleIcon(type, childType);
@@ -62,6 +60,12 @@ public class GetIconFromType {
                     case OBConstant.NodeType.RED_SENSOR:
                     case OBConstant.NodeType.DC_RED_SENSOR:
                         resId = R.drawable.body_have;
+                        break;
+                    case OBConstant.NodeType.DOOR_WINDOW_MAGNET:
+                        resId = R.drawable.door_home;
+                        break;
+                    case OBConstant.NodeType.LIGHT_SENSOR:
+                        resId = R.drawable.light_home;
                         break;
                 }
                 break;

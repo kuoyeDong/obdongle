@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?><!--显示节点与场景整合的对话框-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/white"
+        android:padding="10dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:text="行为"
+            android:textStyle="bold" />
+        <!--显示action-->
+        <TextView
+            android:id="@+id/action_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:text="条件（同时满足触发）"
+            android:textStyle="bold" />
+        <!--显示condition列表-->
+        <ListView
+            android:id="@+id/condition_lv"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:layout_margin="5dp" />
+
+        <Button
+            android:id="@+id/add_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:layout_gravity="center_horizontal"
+            android:text="添加条件" />
+    </LinearLayout>
+</layout>

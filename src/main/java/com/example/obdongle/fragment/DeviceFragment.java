@@ -2,17 +2,19 @@ package com.example.obdongle.fragment;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.example.obdongle.MainActivity;
+import com.example.obdongle.SetSensorAct;
 import com.example.obdongle.ControlLampAct;
 import com.example.obdongle.R;
 import com.example.obdongle.adapter.DeviceAdapter;
@@ -43,6 +45,11 @@ public class DeviceFragment extends BaseFragment implements Respond {
     private SpliceTrans spliceTrans;
     private static DeviceFragment deviceFragment;
 
+    /**
+     * 是否工程人员使用
+     */
+    public static final boolean IS_DEV = false;
+
     public static DeviceFragment instance() {
         synchronized (DeviceFragment.class) {
             if (deviceFragment == null) {
@@ -61,14 +68,35 @@ public class DeviceFragment extends BaseFragment implements Respond {
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        final TextView tv = (TextView) view.findViewById(R.id.device_top).findViewById(R.id.mid_tv);
+        TextView tv = (TextView) view.findViewById(R.id.device_top).findViewById(R.id.mid_tv);
         tv.setText("设备");
+        ImageView imageView = (ImageView) view.findViewById(R.id.device_top).findViewById(R.id.right_img);
+        imageView.setImageResource(R.drawable.release);
+        imageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showSimpleDialog(TWO, null, "确定要释放所有节点吗？", "确定", "取消", new SimpleDialogLSN() {
+                    @Override
+                    public void pOnClick() {
+                        toReleaseDevice();
+                    }
+
+                    @Override
+                    public void nOnClick() {
+
+                    }
+                });
+            }
+        });
+        if (!IS_DEV) {
+            imageView.setVisibility(View.GONE);
+        }
         obNodes = DataPool.getInstance().getObNodes();
         listView = (ListView) view.findViewById(R.id.device_lv);
         DataPool.getInstance().regist(this);
 
         serTv = (TextView) view.findViewById(R.id.ser_tv);
-
+        serTv.setVisibility(View.GONE);
         serTv.setText(Transformation.byteArryToHexString(DataPool.getInstance().getOboxSer()));
         deviceAdapter = new DeviceAdapter(getActivity(), obNodes);
         listView.setAdapter(deviceAdapter);
@@ -79,10 +107,14 @@ public class DeviceFragment extends BaseFragment implements Respond {
                 ObNode obNode = (ObNode) deviceAdapter.getItem(position);
                 int type = obNode.getParentType();
                 int childType = obNode.getType();
-                if (type == OBConstant.NodeType.IS_LAMP && childType == OBConstant.NodeType.IS_WARM_LAMP) {
-                    DataPool.getInstance().setObNode(obNode);
+                DataPool.getInstance().setObNode(obNode);
+                if (type == OBConstant.NodeType.IS_LAMP) {
                     Intent intent = new Intent();
                     intent.setClass(getActivity(), ControlLampAct.class);
+                    startActivity(intent);
+                } else if (type == OBConstant.NodeType.IS_SENSOR) {
+                    Intent intent = new Intent();
+                    intent.setClass(getActivity(), SetSensorAct.class);
                     startActivity(intent);
                 }
             }
@@ -114,15 +146,33 @@ public class DeviceFragment extends BaseFragment implements Respond {
         });
     }
 
+    /**
+     * 请求释放所有节点
+     */
+    private void toReleaseDevice() {
+        spliceTrans = SpliceTrans.getInstance();
+        if (spliceTrans == null) {
+            showToat("蓝牙未连接");
+            return;
+        }
+        spliceTrans.setValueAndSend(MakeSendData.release(DataPool.getInstance().getOboxSer()));
+        showProgressDialog("稍后", "正在释放所有节点", false);
+    }
+
     @Override
     public void onReceive(Message message) {
         disMissProgressDialog();
+        ((MainActivity) getActivity()).disMissProgressDialog();
         switch (message.what) {
+            case OBConstant.ReplyType.ON_BLE_CONFIG_FINISH:
+                if (ShareSerializableUtil.getInstance().isFirst()) {
+                    reqSerNum();
+                }
+                break;
             case OBConstant.ReplyType.GET_OBOX_MSG_BACK:
                 byte[] serNum = ParseUtil.parseObox(message);
                 serTv.setText(Transformation.byteArryToHexString(serNum));
                 DataPool.getInstance().setOboxSer(serNum);
-                ShareSerializableUtil.getInstance().setIsFirst(false);
                 ShareSerializableUtil.getInstance().storageData(DataPool.getInstance());
                 break;
             case OBConstant.ReplyType.EDIT_NODE_OR_GROUP_SUC:
@@ -130,7 +180,13 @@ public class DeviceFragment extends BaseFragment implements Respond {
                 ShareSerializableUtil.getInstance().storageData(DataPool.getInstance());
                 deviceAdapter.notifyDataSetChanged();
                 break;
+            case OBConstant.ReplyType.ON_REALEASE_SUC:
+                DataPool.getInstance().getObNodes().clear();
+                ShareSerializableUtil.getInstance().storageData(DataPool.getInstance());
+                deviceAdapter.notifyDataSetChanged();
+                break;
             case OBConstant.ReplyType.NOT_REPLY:
+            case OBConstant.ReplyType.WRONG_TIME_OUT:
                 showToat("超时");
                 break;
         }
@@ -148,13 +204,37 @@ public class DeviceFragment extends BaseFragment implements Respond {
     /**
      * 请求obox序列号
      */
-    public void reqSerNum() {
+    private void reqSerNum() {
         spliceTrans = SpliceTrans.getInstance();
         if (spliceTrans == null) {
-            showToat("蓝牙未就绪");
+            new Handler().post(new Runnable() {
+                @Override
+                public void run() {
+                    ((MainActivity) getActivity()).disMissProgressDialog();
+                    showToat("蓝牙未就绪");
+                }
+            });
             return;
         }
-        spliceTrans.setValueAndSend(MakeSendData.reqOboxMsg());
         showProgressDialog("稍等", "首次运行需获取obox序列号", false);
+        spliceTrans.setValueAndSend(MakeSendData.reqOboxMsg());
+    }
+
+    /**
+     * 发送蓝牙配置指令
+     */
+    public void startBleConfig() {
+        spliceTrans = SpliceTrans.getInstance();
+        if (spliceTrans == null) {
+            new Handler().post(new Runnable() {
+                @Override
+                public void run() {
+                    ((MainActivity) getActivity()).disMissProgressDialog();
+                    showToat("蓝牙未就绪");
+                }
+            });
+            return;
+        }
+        spliceTrans.setValueAndSendShort(MakeSendData.startBleConfig(),false);
     }
 }

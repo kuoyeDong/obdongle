@@ -61,7 +61,6 @@ public class DeviceAdapter extends BaseAdapter {
             convertView.setTag(viewHolder);
         }
         ObNode obNode = obNodes.get(position);
-        /*暂时用默认的图片*/
         viewHolder.imageView.setImageResource(getIconFromType.getDrawResIdForType(obNode));
         viewHolder.textView.setText(obNode.getNodeId());
         return convertView;

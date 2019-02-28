@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?><!--传感器创建场景页面-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <include
+            android:id="@+id/edit_scene_of_sensor_top"
+            layout="@layout/top"
+            android:layout_width="match_parent"
+            android:layout_height="60dp" />
+        <!--显示场景列表-->
+        <Switch
+            android:id="@+id/edit_scene_switch"
+            android:textOn="@string/app_name"
+            android:textOff="@string/app_name"
+            android:layout_centerHorizontal="true"
+            android:layout_below="@+id/edit_scene_of_sensor_top"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+        <ListView
+            android:id="@+id/scene_lv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/edit_scene_switch" />
+
+        <Button
+            android:id="@+id/add_scene_btn"
+            android:layout_width="match_parent"
+            android:text="添加场景节点"
+            android:layout_height="60dp"
+            android:layout_alignParentBottom="true" />
+    </RelativeLayout>
+</layout>

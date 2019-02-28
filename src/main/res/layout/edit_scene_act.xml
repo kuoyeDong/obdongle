@@ -2,7 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    >
 
     <include
         android:id="@+id/edit_scene_top"
@@ -16,41 +16,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
          />
-    <!--添加场景列表-->
-    <LinearLayout
-        android:id="@+id/edit_panel"
-        android:layout_below="@+id/scene_lv"
-        android:orientation="vertical"
-        android:layout_width="match_parent"
-        android:gravity="center"
-        android:layout_height="wrap_content">
-        <Button
-            android:id="@+id/edit_action"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:text="点击修改行为"
-            />
-        <Button
-            android:id="@+id/edit_condition"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:text="点击修改条件"
-            />
-
-        <Button
-            android:id="@+id/sure"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:text="确定"
-            />
-        <Button
-            android:id="@+id/cancel"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:text="取消"
-            />
-    </LinearLayout>
-
     <Button
         android:id="@+id/add_scene_btn"
         android:layout_width="match_parent"

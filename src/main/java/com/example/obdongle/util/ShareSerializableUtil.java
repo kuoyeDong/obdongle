@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -97,7 +96,6 @@ public class ShareSerializableUtil {
         }
     }
 
-    public static final String IS_FIRST = "is_first";
 
     /**
      * 获取是否第一次运行
@@ -105,15 +103,8 @@ public class ShareSerializableUtil {
      * @return 是则为true
      */
     public boolean isFirst() {
-        return sharedPreferences.getBoolean(IS_FIRST, true);
+        return sharedPreferences.getString(OBOX_SER, "0000000000").equals("0000000000");
     }
 
-    /**
-     * 设置是否第一次运行
-     */
-    public void setIsFirst(boolean isFirst) {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean(IS_FIRST, isFirst);
-        editor.apply();
-    }
+
 }

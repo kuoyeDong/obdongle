@@ -1,7 +1,7 @@
 package com.example.obdongle;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -15,11 +15,14 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.provider.Settings;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
@@ -55,6 +58,11 @@ public class MainActivity extends BaseAct {
     private ImageView btRightImg;
     private TextView btLeftTv;
     private TextView btRightTv;
+    private final int REQ_PERMISSION = 100;
+    /**
+     * 蓝牙等待准备时间
+     */
+    private long WAIT_READY_TIME = 10000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,8 +129,19 @@ public class MainActivity extends BaseAct {
             Toast.makeText(this, "不支持ble", Toast.LENGTH_SHORT).show();
             finish();
         }
-        scanBle(true);
-        findViewById(R.id.left_img);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED
+                    && checkSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED
+                    && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                scanBle(true);
+            } else {
+                requestPermissions(new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN,
+                        Manifest.permission.ACCESS_FINE_LOCATION}, REQ_PERMISSION);
+            }
+        } else {
+            scanBle(true);
+        }
         registerReceiver(bleupdatebr, makeGattUpdateIntentFilter());
     }
 
@@ -145,6 +164,7 @@ public class MainActivity extends BaseAct {
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+        intentFilter.addAction(BluetoothLeService.ACTION_NOTIFICATION_ABLE);
         return intentFilter;
     }
 
@@ -156,7 +176,11 @@ public class MainActivity extends BaseAct {
             mBluetoothLeService.disconnect();
             unbindService(mServiceConnection);
         }
+        if (mBluetoothLeService != null) {
+            mBluetoothLeService.cancel();
+        }
         mBluetoothLeService = null;
+        android.os.Process.killProcess(android.os.Process.myPid());
     }
 
     private BluetoothAdapter mBluetoothAdapter;
@@ -172,6 +196,12 @@ public class MainActivity extends BaseAct {
     private void scanBle(boolean scan) {
         if (!mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            return;
+        }
+        LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
+        if (!(lm.isProviderEnabled(LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER))) {
+            Intent enableBtIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
             return;
         }
@@ -202,12 +232,13 @@ public class MainActivity extends BaseAct {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_ENABLE_BT && resultCode == Activity.RESULT_CANCELED) {
-            finish();
-            return;
-        }
-        scanBle(true);
         super.onActivityResult(requestCode, resultCode, data);
+        scanBle(true);
+//        if (requestCode == REQUEST_ENABLE_BT && resultCode == Activity.RESULT_CANCELED) {
+//
+//            finish();
+//            return;
+//        }
     }
 
     /**
@@ -243,6 +274,7 @@ public class MainActivity extends BaseAct {
                 mDeviceAddress = bluetoothDevices.get(which).getAddress();
                 Intent gattServiceIntent = new Intent(MainActivity.this, BluetoothLeService.class);
                 bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+                showProgressDialog("请稍等", "等待蓝牙就绪", true);
             }
         });
         alert.show();
@@ -270,6 +302,14 @@ public class MainActivity extends BaseAct {
         }
     };
 
+    /**
+     * 蓝牙注册服务的成功数总和，一次成功注册后重置
+     */
+    private int notifiCationSum;
+    /**
+     * 需要注册通知的总数
+     */
+    public static final int SUM = 3;
     private final BroadcastReceiver bleupdatebr = new BroadcastReceiver() {
         @android.support.annotation.RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
         @Override
@@ -281,6 +321,12 @@ public class MainActivity extends BaseAct {
                 onDisConnect();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 onDiscoverServices(mBluetoothLeService.getSupportedGattServices());
+            } else if (BluetoothLeService.ACTION_NOTIFICATION_ABLE.equals(action)) {
+                notifiCationSum++;
+                if (notifiCationSum >= SUM) {
+                    notifiCationSum = 0;
+                    startBleConfig();
+                }
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 byte[] bytes = intent.getByteArrayExtra(EXTRA_DATA);
                 spliceTrans.onRecieve(bytes);
@@ -335,6 +381,11 @@ public class MainActivity extends BaseAct {
             mGattCharacteristics.add(charas);
             gattCharacteristicData.add(gattCharacteristicGroupData);
         }
+        if (mGattCharacteristics.get(mGattCharacteristics.size() - 1).size() < 3) {
+            showToat("请选择正确蓝牙设备");
+            finish();
+            return;
+        }
         characteristic0 = mGattCharacteristics.get(mGattCharacteristics.size() - 1).get(0);
         characteristic1 = mGattCharacteristics.get(mGattCharacteristics.size() - 1).get(1);
         characteristic2 = mGattCharacteristics.get(mGattCharacteristics.size() - 1).get(2);
@@ -342,17 +393,23 @@ public class MainActivity extends BaseAct {
         mBluetoothLeService.setCharacteristicNotification(characteristic1, true);
         mBluetoothLeService.setCharacteristicNotification(characteristic2, true);
         spliceTrans = new SpliceTrans(characteristic0, characteristic1, characteristic2, mBluetoothLeService, DataPool.getInstance().getHandler());
-        /*第一次则获取obox序列号*/
-        if (ShareSerializableUtil.getInstance().isFirst()) {
-            Fragment fragment = getSupportFragmentManager().getFragments().get(0);
-            if (fragment instanceof DeviceFragment) {
-                DeviceFragment deviceFragment = (DeviceFragment) fragment;
-                deviceFragment.reqSerNum();
-            } else {
-                Fragment fragment1 = getSupportFragmentManager().getFragments().get(1);
-                DeviceFragment deviceFragment = (DeviceFragment) fragment1;
-                deviceFragment.reqSerNum();
-            }
+        mBluetoothLeService.setSpliceTrans(spliceTrans);
+    }
+
+    /**
+     * 发送设备蓝牙配置指令
+     */
+    private void startBleConfig() {
+        disMissProgressDialog();
+        showProgressDialog("稍等", "正在配置设备", false);
+        Fragment fragment = getSupportFragmentManager().getFragments().get(0);
+        if (fragment instanceof DeviceFragment) {
+            DeviceFragment deviceFragment = (DeviceFragment) fragment;
+            deviceFragment.startBleConfig();
+        } else {
+            Fragment fragment1 = getSupportFragmentManager().getFragments().get(1);
+            DeviceFragment deviceFragment = (DeviceFragment) fragment1;
+            deviceFragment.startBleConfig();
         }
     }
 
@@ -433,4 +490,32 @@ public class MainActivity extends BaseAct {
             }
         }
     };
+
+    @SuppressWarnings("NullableProblems")
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_PERMISSION) {
+            //如果请求取消则grantResults数组为空
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                    && grantResults[1] == PackageManager.PERMISSION_GRANTED
+                    && grantResults[2] == PackageManager.PERMISSION_GRANTED
+                    ) {
+                scanBle(true);
+            } else {
+                Toast.makeText(this, "权限不足，程序即将退出", Toast.LENGTH_LONG).show();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Thread.sleep(1000);
+                            finish();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
+            }
+        }
+    }
 }

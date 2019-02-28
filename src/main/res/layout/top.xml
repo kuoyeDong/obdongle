@@ -15,7 +15,8 @@
         android:id="@+id/mid_tv"
         android:layout_width="0dp"
         android:layout_weight="1"
-        android:textSize="28sp"
+        android:textSize="25sp"
+        android:text="Title"
         android:gravity="center"
         android:layout_height="30dp" />
 

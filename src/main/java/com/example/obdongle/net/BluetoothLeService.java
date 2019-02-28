@@ -35,11 +35,13 @@ import android.os.IBinder;
 import android.support.annotation.RequiresApi;
 import android.util.Log;
 
-
 import com.example.obdongle.util.Transformation;
 
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
+import java.util.Vector;
 
 /**
  * Service for managing connection and data communication with a GATT server hosted on a
@@ -47,8 +49,13 @@ import java.util.UUID;
  */
 @SuppressLint("NewApi")
 public class BluetoothLeService extends Service {
-    private final static String TAG = "BluetoothLeService";
 
+    private final static String TAG = "BluetoothLeService";
+    /**
+     * 注册通知成功的广播action
+     */
+    public static final String ACTION_NOTIFICATION_ABLE = "action_notification_able";
+    private SpliceTrans spliceTrans;
     private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private String mBluetoothDeviceAddress;
@@ -119,7 +126,13 @@ public class BluetoothLeService extends Service {
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
             Log.w(TAG, "onCharacteristicChanged " + Transformation.byteArryToHexString(characteristic.getValue()));
-            broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+//            broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+            final byte[] data = characteristic.getValue();
+            if (data != null && data.length > 0) {
+                caches.add(data);
+                caches.size();
+            }
+
         }
 
         @Override
@@ -157,6 +170,10 @@ public class BluetoothLeService extends Service {
             Log.w(TAG, "onReliableWriteCompleted ");
         }
     };
+    /**
+     * INDICATION方式
+     */
+    private boolean INDICATION = false;
 
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);
@@ -193,6 +210,11 @@ public class BluetoothLeService extends Service {
             }
         }
         sendBroadcast(intent);
+    }
+
+    public void setSpliceTrans(SpliceTrans spliceTrans) {
+        this.spliceTrans = spliceTrans;
+        timer.schedule(timerTask, 100, 100);
     }
 
     public class LocalBinder extends Binder {
@@ -345,21 +367,51 @@ public class BluetoothLeService extends Service {
      * @param enabled        If true, enable notification.  False otherwise.
      */
     @SuppressLint("NewApi")
-    public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic,
-                                              boolean enabled) {
+    public void setCharacteristicNotification(final BluetoothGattCharacteristic characteristic,
+                                              final boolean enabled) {
         if (mBluetoothAdapter == null || mBluetoothGatt == null) {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
-        mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
+        final boolean[] isSucNotify = {mBluetoothGatt.setCharacteristicNotification(characteristic, enabled)};
+        if (!isSucNotify[0]) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (!isSucNotify[0]) {
+                        isSucNotify[0] = mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
+                        Log.d(TAG, "setCharacteristicNotification: isSuc = " + isSucNotify[0]);
+                    }
+                    broadcastUpdate(ACTION_NOTIFICATION_ABLE);
+                }
+            }).start();
+        } else {
+            broadcastUpdate(ACTION_NOTIFICATION_ABLE);
+        }
+        if (INDICATION) {
+            final BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+            final boolean[] isSUc = {mBluetoothGatt.writeDescriptor(descriptor)};
+            Log.d(TAG, "setCharacteristicNotification: isSuc = " + isSUc[0]);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (!isSUc[0]) {
+                        isSUc[0] = mBluetoothGatt.writeDescriptor(descriptor);
+                        Log.d(TAG, "mBluetoothGatt.writeDescriptor " + isSUc[0]);
+                    }
+                }
+            }).start();
+        }
 
         // This is specific to Heart Rate Measurement.
-        if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
-            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
-                    UUID.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            mBluetoothGatt.writeDescriptor(descriptor);
-        }
+//        if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
+//            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
+//                    UUID.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+//            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+////            descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+//            mBluetoothGatt.writeDescriptor(descriptor);
+//        }
     }
 
     /**
@@ -373,4 +425,28 @@ public class BluetoothLeService extends Service {
 
         return mBluetoothGatt.getServices();
     }
+
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
+    private Vector<byte[]> caches = new Vector();
+
+
+    private TimerTask timerTask = new TimerTask() {
+        @Override
+        public void run() {
+            if (caches.size() > 0) {
+                if (spliceTrans != null) {
+                    spliceTrans.onRecieve(caches.get(0));
+                    caches.remove(0);
+                }
+            }
+        }
+    };
+
+    private Timer timer = new Timer();
+
+    public void cancel() {
+        timer.cancel();
+    }
 }
+
+

@@ -1,6 +1,8 @@
 package com.example.obdongle.bean;
 
 
+import android.content.Intent;
+
 import com.example.obdongle.util.MathUtil;
 import com.example.obdongle.util.StringUtil;
 import com.example.obdongle.util.Transformation;
@@ -16,7 +18,7 @@ import java.util.Map;
  * 所以在此不包含版本信息
  * Created by Adolf_Dong on 2016/5/24.
  */
-public class ObNode implements Serializable{
+public class ObNode implements Serializable {
     /**
      * 所属obox
      */
@@ -82,20 +84,12 @@ public class ObNode implements Serializable{
     private byte[] cplAddr;
 
 
-    public Map<String, String> getActionMap() {
-        return actionMap;
+    public List<NodeScene> getSceneList() {
+        return sceneList;
     }
 
-    public void setActionMap(Map<String, String> actionMap) {
-        this.actionMap = actionMap;
-    }
-
-    public Map<String, String> getConditionMap() {
-        return conditionMap;
-    }
-
-    public void setConditionMap(Map<String, String> conditionMap) {
-        this.conditionMap = conditionMap;
+    public void setSceneList(List<NodeScene> actionMap) {
+        this.sceneList = actionMap;
     }
 
     public List<Integer> getIndexs() {
@@ -109,11 +103,8 @@ public class ObNode implements Serializable{
     /**
      * 行为map，使用于受控设备，使用下标为键
      */
-    private Map<String, String> actionMap = new HashMap<>();
-    /**
-     * 条件map，使用于传感器设备，使用下标为键
-     */
-    private Map<String, String> conditionMap = new HashMap<>();
+    private List<NodeScene> sceneList = new ArrayList<>();
+
     /**
      * 情景下标集合
      */
@@ -306,5 +297,38 @@ public class ObNode implements Serializable{
     }
 
 
+    public static final int MAX_SCENE_NUM = 10;
+
+    /**
+     * 是否可以添加场景
+     *
+     * @return 可以添加返回true
+     */
+    public boolean canAddScene() {
+        return sceneList.size() < MAX_SCENE_NUM;
+    }
+
+    /**
+     * 以1-3的顺序获取可用的index
+     */
+    public int canUseSceneIndex() {
+        int size = sceneList.size();
+        if (size == 0) {
+            return 1;
+        } else {
+            List<Integer> integers = new ArrayList<>();
+            for (int i = 0; i < sceneList.size(); i++) {
+                NodeScene nodeScene = sceneList.get(i);
+                int index = nodeScene.getIndex();
+                integers.add(index);
+            }
+            for (int i = 1; i < MAX_SCENE_NUM + 1; i++) {
+                if (!integers.contains(i)) {
+                    return i;
+                }
+            }
+        }
+        return 1;
+    }
 }
 

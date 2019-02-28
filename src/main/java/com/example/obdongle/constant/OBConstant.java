@@ -203,6 +203,7 @@ public interface OBConstant {
         int ON_SET_HEART_SUCCESS = 46;
         int ON_SET_HEART_FAIL = 47;
         int ON_SET_SCENE_SUC = 48;
+        int ON_BLE_CONFIG_FINISH = 49;
     }
 
     /**

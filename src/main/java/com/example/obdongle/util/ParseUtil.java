@@ -1,15 +1,13 @@
 package com.example.obdongle.util;
 
-import android.content.SharedPreferences;
 import android.os.Message;
+import android.util.Log;
 
 import com.example.obdongle.bean.ObNode;
 import com.example.obdongle.constant.OBConstant;
-import com.example.obdongle.data.DataPool;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 解析操作返回数据
@@ -81,11 +79,42 @@ public class ParseUtil {
         byte[] bytes = getBytes(msg);
         byte parentType = (byte) MathUtil.byteIndexValid(bytes[index[9]], 0, 7);
         byte type = bytes[index[10]];
-        byte[] id = Arrays.copyOfRange(bytes, index[11], index[11] + 16);
-        byte[] sernums = Arrays.copyOfRange(bytes, index[11] + 16, index[11] + 16 + 5);
-        byte[] rfAddr = Arrays.copyOfRange(bytes, index[11] + 16 + 5, index[11] + 16 + 5 + 5);
-        byte groupAddr = bytes[index[11] + 16 + 5 + 5];
-        byte addr = bytes[index[11] + 16 + 5 + 5 + 1];
+        byte[] sernums = Arrays.copyOfRange(bytes, index[11], index[11] + 5);
+        byte[] rfAddr = Arrays.copyOfRange(bytes, index[11] + 5, index[11] + 5 + 5);
+        byte groupAddr = bytes[index[11] + 5 + 5];
+        byte addr = bytes[index[11] + 5 + 5 + 1];
+        String name = null;
+        switch (parentType) {
+            case OBConstant.NodeType.IS_LAMP:
+                name = "Lamp";
+                break;
+            case OBConstant.NodeType.IS_SENSOR:
+                switch (type) {
+                    case OBConstant.NodeType.FLOOD:
+                        name = "Water";
+                        break;
+                    case OBConstant.NodeType.RADAR:
+                    case OBConstant.NodeType.XIBING_RADAR:
+                        name = "Radar";
+                        break;
+                    case OBConstant.NodeType.DC_RED_SENSOR:
+                    case OBConstant.NodeType.RED_SENSOR:
+                        name = "Infrared";
+                        break;
+                    case OBConstant.NodeType.DOOR_WINDOW_MAGNET:
+                        name = "Magnetic";
+                        break;
+                    case OBConstant.NodeType.LIGHT_SENSOR:
+                        name = "Light sensor";
+                        break;
+                }
+                break;
+            default:
+                name = "unknow";
+                break;
+        }
+        byte[] id = (name + addr).getBytes();
+        Log.d(TAG, "parseNewNode: name = " + new String(id));
         ObNode newObNode = new ObNode(parentType, type, id, sernums,
                 rfAddr, groupAddr, addr);
         if (parentType == 1) {
@@ -95,22 +124,16 @@ public class ParseUtil {
         // rf地址没变化，覆盖参数；rf地址有变化，从原先的obox节点列表删除，添加到新入网时所在obox节点列表
         for (ObNode obNode : obNodes) {
             if (Arrays.equals(obNode.getSerNum(), newObNode.getSerNum())) {
-                if (Arrays.equals(obNode.getRfAddr(), newObNode.getRfAddr())) {
-                    obNode.setState(newObNode.getState());
-                    obNode.setGroupAddr(newObNode.getGroupAddr());
-                    obNode.setAddr(newObNode.getAddr());
-                    obNode.setCplAddr(newObNode.getCplAddr());
-                    obNode.setId(newObNode.getId());
-                } else {
-                    obNodes.remove(obNode);
-                    obNodes.add(newObNode);
-                }
+                obNodes.remove(obNode);
+                obNodes.add(newObNode);
                 return newObNode;
             }
         }
         obNodes.add(newObNode);
         return newObNode;
     }
+
+    private static final String TAG = "ParseUtil";
 
     /**
      * 新增分组，删除或者重命名组或者节点的处理
@@ -127,7 +150,7 @@ public class ParseUtil {
                     case 0:
                         /*5 rf地址 1组地址 1节点地址*/
                         byte[] rfaddr = Arrays.copyOfRange(datas, index[9 + 1], index[9 + 1 + 5]);
-                        int addr = index[9 + 1 + 5 + 1] & 0xff;
+                        int addr = datas[index[9 + 1 + 5 + 1]] & 0xff;
                         for (int i = 0; i < obNodes.size(); i++) {
                             ObNode obNode = obNodes.get(i);
                             if (Arrays.equals(rfaddr, obNode.getRfAddr()) && addr == obNode.getAddr()) {
@@ -143,10 +166,11 @@ public class ParseUtil {
                 break;
         }
     }
+
     /**
      * 解析obox,对obox各项参数进行设置,序列号，版本号
      *
-     * @param msg     msg
+     * @param msg msg
      */
     public static byte[] parseObox(Message msg) {
         byte[] bytes = getBytes(msg);

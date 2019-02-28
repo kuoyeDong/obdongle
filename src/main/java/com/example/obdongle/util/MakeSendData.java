@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.example.obdongle.bean.ObNode;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -22,6 +23,19 @@ public class MakeSendData {
 
     private static final String TAG = "MakeSendData";
 
+
+    /**发送设备初始化指令，设备收到后进行初始化，完成后会回复a080，意味着可以进行下一步操作，此指令不做超时判断
+     * @return  发送数据
+     */
+    public static byte[] startBleConfig() {
+        byte[] cmd = new byte[64];
+        cmd[index[5]] = (byte) 0x80;
+        cmd[index[6]] = (byte) 0x80;
+        cmd[index[7]] = (byte) 0x01;
+        cmd[index[8]] = (byte) 0x01;
+        Log.d(TAG, "startBleConfig");
+        return cmd;
+    }
     /**
      * 设置任何设备的状态，主要的状态设置在设置页面中设定
      *
@@ -65,21 +79,28 @@ public class MakeSendData {
     /**
      * 设置节点的情景,此情景由节点存储
      *
+     * @param groupIndex    与位
      * @param sceneIndex    行为节点的情景下标
      * @param actionNode    行为节点
      * @param conditionNode 条件节点
      *                      完整地址 7， 编号1 类型1（0x0a为一字节等于），传感器地址1，传感器比较状态2，行为5
+     * @param isOpen        条件是是否是传感器打开
+     * @param action        具体的行为内容
+     * @param isRemove      是否删除场景，删除场景除序号外全0
+     * @return
      */
-    public static byte[] setNodeScene(int sceneIndex, ObNode actionNode, ObNode conditionNode,boolean isOpen,byte[] action) {
+    public static byte[] setNodeScene(int groupIndex,int sceneIndex, ObNode actionNode, ObNode conditionNode, boolean isOpen, byte[] action, boolean isRemove) {
         byte[] cmd = new byte[64];
         cmd[index[5]] = (byte) 0x80;
         cmd[index[6]] = (byte) 0x21;
         System.arraycopy(actionNode.getCplAddr(), 0, cmd, index[8], 7);
-        cmd[index[8] + 7] = (byte) sceneIndex;
-        cmd[index[8] + 7 + 1] = 0x0a;
-        cmd[index[8] + 7 + 1 + 1] = conditionNode.getAddr();
-        cmd[index[8] + 7 + 1 + 1 + 1 + 1] = (byte) (isOpen ? 1 : 0);
-        System.arraycopy(action,0,cmd,cmd[index[8] + 7 + 1 + 1 + 1 + 1+1],action.length);
+        cmd[index[8] + 7] = (byte) ((groupIndex<<4)+ (byte) sceneIndex);
+        if (!isRemove) {
+            cmd[index[8] + 7 + 1] = 0x0a;
+            cmd[index[8] + 7 + 1 + 1] = conditionNode.getAddr();
+            cmd[index[8] + 7 + 1 + 1 + 1] = (byte) (isOpen ? 1 : 0);
+            System.arraycopy(action, 0, cmd, index[8] + 7 + 1 + 1 + 1 + 1 + 1, action.length);
+        }
         return cmd;
     }
 
@@ -93,7 +114,7 @@ public class MakeSendData {
         byte[] cmd = new byte[64];
         cmd[index[5]] = (byte) 0x80;
         cmd[index[6]] = (byte) 0x04;
-        cmd[index[8]] = (byte) 0;
+        cmd[index[8]] = 0x04;
         System.arraycopy(obNode.getRfAddr(), 0, cmd, index[9], obNode.getRfAddr().length);
         cmd[index[9] + obNode.getRfAddr().length] = 0;
         cmd[index[9] + obNode.getRfAddr().length + 1] = obNode.getAddr();
@@ -114,6 +135,22 @@ public class MakeSendData {
         cmd[9] = 0x01;
         cmd[61] = 0x55;
         Log.d(TAG, "reqOboxMsg: 获取obox信息");
+        return cmd;
+    }
+
+    /**
+     * 释放所有设备
+     *
+     * @param oboxSer obox序列号
+     */
+    public static byte[] release(byte[] oboxSer) {
+        byte[] cmd = new byte[62];
+        cmd[index[5]] = (byte) 0x80;
+        cmd[index[6]] = 0x0a;
+        cmd[index[8]] = 0x01;
+        System.arraycopy(oboxSer, 0, cmd, index[9], oboxSer.length);
+        cmd[index[62]] = 0x55;
+        Log.d(TAG, "release: 释放设备");
         return cmd;
     }
 }
